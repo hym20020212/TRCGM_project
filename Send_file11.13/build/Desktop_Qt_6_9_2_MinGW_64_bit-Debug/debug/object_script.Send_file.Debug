@@ -1,0 +1,16 @@
+debug/connectconfigdialog.o
+debug/errorstatistic.o
+debug/generatefiledialog.o
+debug/main.o
+debug/manualinputdialog.o
+debug/snrwidget.o
+debug/transferrate.o
+debug/widget.o
+debug/qrc_images.o
+debug/moc_connectconfigdialog.o
+debug/moc_errorstatistic.o
+debug/moc_generatefiledialog.o
+debug/moc_manualinputdialog.o
+debug/moc_snrwidget.o
+debug/moc_transferrate.o
+debug/moc_widget.o

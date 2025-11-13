@@ -1,0 +1,57 @@
+<RCC>
+    <qresource prefix="/new/prefix1">
+        <file>image/7115076.png</file>
+        <file>image/AppIcon.ico</file>
+        <file>image/AppIcon.png</file>
+        <file>image/ble_icon.png</file>
+        <file>image/close-pressed.png</file>
+        <file>image/Collapse.png</file>
+        <file>image/command.png</file>
+        <file>image/command_icon.png</file>
+        <file>image/confige.png</file>
+        <file>image/configure.png</file>
+        <file>image/edit.png</file>
+        <file>image/Expand.png</file>
+        <file>image/gate_special.png</file>
+        <file>image/gateway.jpg</file>
+        <file>image/gateway.png</file>
+        <file>image/gateway_gray.png</file>
+        <file>image/hidden.png</file>
+        <file>image/historicalData.png</file>
+        <file>image/icons8-connect-250.png</file>
+        <file>image/linePainting.png</file>
+        <file>image/load.png</file>
+        <file>image/load1.png</file>
+        <file>image/load2.png</file>
+        <file>image/mothernode.png</file>
+        <file>image/node_close.png</file>
+        <file>image/node_inactive.png</file>
+        <file>image/node_layer0.png</file>
+        <file>image/node_layer1.png</file>
+        <file>image/node_layer2.png</file>
+        <file>image/node_layer3.png</file>
+        <file>image/node_open.png</file>
+        <file>image/painting.jpg</file>
+        <file>image/refresh.png</file>
+        <file>image/reserve.png</file>
+        <file>image/save.png</file>
+        <file>image/sensor.png</file>
+        <file>image/sink_node.png</file>
+        <file>image/SpO2.png</file>
+        <file>image/standby node.png</file>
+        <file>image/switch_close.png</file>
+        <file>image/switch_disable.png</file>
+        <file>image/switch_open.png</file>
+        <file>image/switch_red.png</file>
+        <file>image/swtich_close1.png</file>
+        <file>image/swtich_state.png</file>
+        <file>image/temp_sensor.png</file>
+        <file>image/terminal.png</file>
+        <file>image/terminal_darkyellow.png</file>
+        <file>image/terminal_gray.png</file>
+        <file>image/terminal_red.png</file>
+        <file>image/terminal_yellow.png</file>
+        <file>image/unconnected.png</file>
+        <file>image/unknown_color.png</file>
+    </qresource>
+</RCC>

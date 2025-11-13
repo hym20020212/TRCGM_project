@@ -1,0 +1,16 @@
+release/connectconfigdialog.o
+release/errorstatistic.o
+release/generatefiledialog.o
+release/main.o
+release/manualinputdialog.o
+release/snrwidget.o
+release/transferrate.o
+release/widget.o
+release/qrc_images.o
+release/moc_connectconfigdialog.o
+release/moc_errorstatistic.o
+release/moc_generatefiledialog.o
+release/moc_manualinputdialog.o
+release/moc_snrwidget.o
+release/moc_transferrate.o
+release/moc_widget.o
