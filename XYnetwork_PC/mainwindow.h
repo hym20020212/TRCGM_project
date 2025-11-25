@@ -1,8 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QTcpSocket>
-
 #include <QMainWindow>
+#include "topologyview.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -26,6 +26,7 @@ private slots:
 private:
     Ui::MainWindow *ui;
     QTcpSocket *tcpSocket;
+    TopologyView *topology;
     bool connectToNode(const QString &ip, int port);
 };
 #endif // MAINWINDOW_H

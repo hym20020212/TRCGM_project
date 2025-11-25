@@ -13,13 +13,15 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mxmodedialog.cpp \
-    replacechaindialog.cpp
+    replacechaindialog.cpp \
+    topologyview.cpp
 
 HEADERS += \
     connectdialog.h \
     mainwindow.h \
     mxmodedialog.h \
-    replacechaindialog.h
+    replacechaindialog.h \
+    topologyview.h
 
 FORMS += \
     connectdialog.ui \

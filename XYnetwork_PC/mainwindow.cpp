@@ -18,6 +18,17 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionReplace, &QAction::triggered,
             this, &MainWindow::onActionReplaceTriggered);
 
+    QVBoxLayout *lay = new QVBoxLayout(ui->netTopologyView);
+    lay->setContentsMargins(0,0,0,0);
+    ui->netTopologyView->setLayout(lay);
+
+    TopologyView *tp = new TopologyView(this);
+    lay->addWidget(tp);
+
+    tp->drawTopology();
+
+
+
 }
 
 MainWindow::~MainWindow()
