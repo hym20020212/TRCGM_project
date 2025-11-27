@@ -22,6 +22,8 @@ protected:
 private:
     QGraphicsScene *m_scene;
     QGraphicsView  *m_view;
+    QHBoxLayout *m_legendLayout = nullptr;   // 图例布局
+    void setupLegend();
 
     // helper
     static QPointF ellipsePoint(double cx, double cy, double rx, double ry, double t);

@@ -8,6 +8,8 @@
 #include <QBrush>
 #include <QtMath>
 #include <QTimer>
+#include <QLabel>
+#include <QHBoxLayout>
 
 TopologyView::TopologyView(QWidget *parent)
     : QWidget(parent)
@@ -32,6 +34,7 @@ TopologyView::TopologyView(QWidget *parent)
         if (m_view && m_scene)
             m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
     });
+    setupLegend();
 }
 
 QGraphicsScene* TopologyView::scene() const { return m_scene; }
@@ -152,4 +155,44 @@ void TopologyView::resizeEvent(QResizeEvent *event)
     if (m_view && m_scene) {
         m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
     }
+}
+void TopologyView::setupLegend()
+{
+
+    if (m_legendLayout)
+        return;
+
+    m_legendLayout = new QHBoxLayout();
+    m_legendLayout->setContentsMargins(5, 5, 5, 5);
+    m_legendLayout->setSpacing(20);
+
+    auto makeLegend = [&](const QColor &color, const QString &text) {
+        QWidget *icon = new QWidget();
+        icon->setFixedSize(16,16);
+        icon->setStyleSheet(QString("background:%1; border-radius:8px;")
+                                .arg(color.name()));
+
+        QLabel *label = new QLabel(text);
+        label->setStyleSheet("font-size:14px;");
+
+        QHBoxLayout *hl = new QHBoxLayout();
+        hl->setContentsMargins(0,0,0,0);
+        hl->setSpacing(5);
+        hl->addWidget(icon);
+        hl->addWidget(label);
+
+        QWidget *wrap = new QWidget();
+        wrap->setLayout(hl);
+        return wrap;
+    };
+
+    // 添加三项图例
+    m_legendLayout->addWidget(makeLegend(Qt::red,  "未入网"));
+    m_legendLayout->addWidget(makeLegend(Qt::green,"已入网"));
+    m_legendLayout->addWidget(makeLegend(Qt::blue, "基座节点"));
+
+    // 添加到主布局的底部
+    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(this->layout());
+    if (mainLayout)
+        mainLayout->addLayout(m_legendLayout);
 }

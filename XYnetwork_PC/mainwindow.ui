@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>819</width>
-    <height>517</height>
+    <width>861</width>
+    <height>557</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -613,6 +613,9 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QWidget" name="legendWidget" native="true"/>
+            </item>
            </layout>
           </item>
          </layout>
@@ -647,7 +650,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>819</width>
+     <width>861</width>
      <height>18</height>
     </rect>
    </property>

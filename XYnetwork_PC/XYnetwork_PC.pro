@@ -14,6 +14,7 @@ SOURCES += \
     mainwindow.cpp \
     mxmodedialog.cpp \
     replacechaindialog.cpp \
+    slotitem.cpp \
     topologyview.cpp
 
 HEADERS += \
@@ -21,6 +22,7 @@ HEADERS += \
     mainwindow.h \
     mxmodedialog.h \
     replacechaindialog.h \
+    slotitem.h \
     topologyview.h
 
 FORMS += \
