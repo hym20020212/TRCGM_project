@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SendData</class>
+ <widget class="QDialog" name="SendData">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>685</width>
+    <height>456</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>发送数据</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>发送数据内容：</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTextEdit" name="textEdit_senddata"/>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="label_7">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>接收节点ID：</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="nodeID_comboBox">
+         <item>
+          <property name="text">
+           <string>广播（000-1111）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>MX（000-0000）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>GZ1（001-0000）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>GZ2（001-0001）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY1（010-0000）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY2（010-0001）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY3（010-0010)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY4（010-0011）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY5（010-0100）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>BY6（010-0101）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZJ0（011-0000）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZJ1（011-0001）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZJ2（011-0010）</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZJ3（011-0011）</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_clear">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>清空发送</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_senddata">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>发送</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

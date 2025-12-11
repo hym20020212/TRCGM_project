@@ -18,6 +18,7 @@ public:
 
 private:
     Ui::MXmodeDialog *ui;
+
 };
 
 #endif // MXMODEDIALOG_H

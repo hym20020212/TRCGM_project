@@ -35,6 +35,7 @@ void SlotItem::updateAppearance()
     }
     setBrush(brush);
     setPen(QPen(Qt::black, 1));
+    update();
 }
 
 void SlotItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event)

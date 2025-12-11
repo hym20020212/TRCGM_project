@@ -13,7 +13,9 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mxmodedialog.cpp \
+    nodeitem.cpp \
     replacechaindialog.cpp \
+    senddata.cpp \
     slotitem.cpp \
     topologyview.cpp
 
@@ -21,7 +23,9 @@ HEADERS += \
     connectdialog.h \
     mainwindow.h \
     mxmodedialog.h \
+    nodeitem.h \
     replacechaindialog.h \
+    senddata.h \
     slotitem.h \
     topologyview.h
 
@@ -29,7 +33,8 @@ FORMS += \
     connectdialog.ui \
     mainwindow.ui \
     mxmodedialog.ui \
-    replacechaindialog.ui
+    replacechaindialog.ui \
+    senddata.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

@@ -51,15 +51,12 @@ void TopologyView::addLabeledCircle(QGraphicsScene* s, double x, double y, doubl
     s->addEllipse(x - r, y - r, r*2, r*2, pen, brush);
 }
 
-void TopologyView::addNodeCircle(QGraphicsScene* s, double x, double y, const QString& id,
-                                 double r, double dx, double dy)
+
+void TopologyView::addNode(const QString& name, double x, double y)
 {
-    addLabeledCircle(s, x, y, r);
-    QGraphicsTextItem *t = s->addText(id);
-    QFont f = t->font();
-    f.setPointSize(14);
-    t->setFont(f);
-    t->setPos(x + dx, y + dy);
+    NodeItem* item = new NodeItem(name, QPointF(x, y), 12);
+    m_scene->addItem(item);
+    m_nodes[name] = item;
 }
 
 void TopologyView::drawTopology()
@@ -98,24 +95,23 @@ void TopologyView::drawTopology()
     bigTitle->setFont(ft);
     bigTitle->setPos(bcx - 22, bcy - 8);
 
-    // --- small net nodes (DJ1..DJ10 on small1, DJ11..DJ20 on small2) ---
     const int smallCount = 10;
     for (int i = 0; i < smallCount; ++i) {
         double ang = 1.5 * M_PI * i / smallCount + 0.8*M_PI;
         QPointF p1(s1cx + sR * qCos(ang), s1cy + sR * qSin(ang));
-        addNodeCircle(m_scene, p1.x(), p1.y(), QString("DJ%1").arg(i+1));
+        addNode(QString("DJ%1").arg(i+1), p1.x() , p1.y());
 
         QPointF p2(s2cx + sR * qCos(ang), s2cy + sR * qSin(ang));
-        addNodeCircle(m_scene, p2.x(), p2.y(), QString("DJ%1").arg(i+11));
+        addNode(QString("DJ%1").arg(i+11), p2.x(), p2.y());
     }
 
     // --- big net explicit nodes list (BY1..BY6, MX, GZ1, GZ2) ---
     QStringList bigLabels = {"BY6","BY5","BY4","BY3","BY2","BY1","GZ2","GZ1","MX"};
     const int bigCount = bigLabels.size();
     for (int i = 0; i < bigCount; ++i) {
-        double ang = 1.5 * M_PI * i / bigCount -  0.2*M_PI ; // distribute around ellipse
+        double ang = 1.5 * M_PI * i / bigCount - 0.2*M_PI;
         QPointF p = ellipsePoint(bcx, bcy, brx, bry, ang);
-        addNodeCircle(m_scene, p.x(), p.y(), bigLabels.at(i));
+        addNode(bigLabels.at(i), p.x(), p.y());
     }
 
     // --- compute tangency-like points and place ZJ nodes ---
@@ -133,8 +129,8 @@ void TopologyView::drawTopology()
 
     // place ZJ0 and ZJ1 near the tangent (adjust offsets for visual separation)
     QPointF mid1 = (pb1 + ps1) / 2.0;
-    addNodeCircle(m_scene, mid1.x() - 48, mid1.y() + 10, "ZJ0");
-    addNodeCircle(m_scene, mid1.x() - 16, mid1.y(), "ZJ1");
+    addNode("ZJ0", mid1.x()-58, mid1.y()+10);
+    addNode("ZJ1", mid1.x()-16, mid1.y());
 
     double t2 = computeT(s2cx, s2cy);
     QPointF pb2 = ellipsePoint(bcx, bcy, brx, bry, t2);
@@ -142,10 +138,8 @@ void TopologyView::drawTopology()
     QPointF ps2(s2cx - sR * ux2, s2cy - sR * uy2);
 
     QPointF mid2 = (pb2 + ps2) / 2.0;
-    addNodeCircle(m_scene, mid2.x() + 16, mid2.y(), "ZJ2",12, -12, -30);
-    addNodeCircle(m_scene, mid2.x() + 54, mid2.y() + 12, "ZJ3");
-
-    // --- optional: adjust scene rect to show everything nicely ---
+    addNode("ZJ2", mid2.x()+16, mid2.y());
+    addNode("ZJ3", mid2.x()+60, mid2.y()+12);
     m_scene->setSceneRect(0, 0, 900, 750);
 }
 
@@ -195,4 +189,20 @@ void TopologyView::setupLegend()
     QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(this->layout());
     if (mainLayout)
         mainLayout->addLayout(m_legendLayout);
+}
+
+void TopologyView::updateNodeState(const QString& nodeName, int slot)
+{
+    if (!m_nodes.contains(nodeName))
+        return;
+
+    NodeItem* node = m_nodes[nodeName];
+
+    if (slot == 0)
+        node->setState(NodeItem::NotJoined);
+    else if (slot == 1)
+        node->setState(NodeItem::Joined);
+    else
+        node->setState(NodeItem::Base);
+    m_scene->update();
 }
