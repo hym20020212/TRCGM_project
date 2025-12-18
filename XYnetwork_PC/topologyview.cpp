@@ -106,7 +106,7 @@ void TopologyView::drawTopology()
     }
 
     // --- big net explicit nodes list (BY1..BY6, MX, GZ1, GZ2) ---
-    QStringList bigLabels = {"BY6","BY5","BY4","BY3","BY2","BY1","GZ2","GZ1","MX"};
+    QStringList bigLabels = {"BY6","BY5","BY4","GZ2","MX","GZ1","BY3","BY2","BY1"};
     const int bigCount = bigLabels.size();
     for (int i = 0; i < bigCount; ++i) {
         double ang = 1.5 * M_PI * i / bigCount - 0.2*M_PI;

@@ -24,3 +24,9 @@ QString MXmodeDialog::selectedMode() const
 {
     return ui->comboMode->currentText();
 }
+
+quint8 MXmodeDialog::selectedModeByte() const
+{
+    // 根据选中项返回对应字节：全自主=0x00，上位机接管=0x01
+    return (ui->comboMode->currentIndex() == 0) ? 0x00 : 0x01;
+}

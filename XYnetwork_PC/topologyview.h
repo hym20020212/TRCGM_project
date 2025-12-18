@@ -28,6 +28,7 @@ private:
     QHBoxLayout *m_legendLayout = nullptr;   // 图例布局
     //节点对象化
     QMap<QString, NodeItem*> m_nodes;
+
     void setupLegend();
 
     // helper

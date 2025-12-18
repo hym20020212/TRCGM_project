@@ -15,6 +15,7 @@ public:
     explicit MXmodeDialog(QWidget *parent = nullptr);
     ~MXmodeDialog();
     QString selectedMode() const;
+    quint8 selectedModeByte() const;
 
 private:
     Ui::MXmodeDialog *ui;
