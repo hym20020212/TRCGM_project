@@ -36,6 +36,7 @@ private slots:
     void onActionControlTriggered();
     void onActionLostcontrolTriggered();
     void onActionMeasureTriggered();
+    void onActionBaseSetTriggered();
     void dealTcpData();
     void sendDataToNode(const QString &targetNode, const QString &payload);
     void on_senddataclear_pushButton_clicked();
@@ -43,7 +44,7 @@ private slots:
 
 
     void on_recvdataclear_pushButton_clicked();
-
+    void updateMeasureActionText();
     void on_netlunch_pushButton_clicked();
 
 private:
@@ -57,9 +58,15 @@ private:
     QVector<SlotItem*> slotItems1;              // 存放 80 个 SlotItem 指针
     QVector<SlotItem*> slotItems2;
     QString tcpRecvBuffer;   // TCP 接收显示缓存
+    QMap<int, bool> m_nodeRangingState; // 缓存节点测距状态：key=节点ID，value=是否测距
+    QString m_currentNodeName; // 当前连接的节点名称（如MX/GZ1/GZ2）
+    quint8 m_currentNodeId; // 当前连接的节点ID
+    QTimer *m_idRequestTimer;// 身份索要定时器
+
     bool isTcpConnected = false;
     bool isControl = false;
     bool isLoseControl = false;
+    bool m_hasReceivedNodeId;  // 是否已收到节点身份信息
 
     bool connectToNode(const QString &ip, int port);
     void initSlotsSceneGeneric(QGraphicsScene *scene, QVector<SlotItem*> &items, QLabel *countLabel,
@@ -77,6 +84,7 @@ private:
     void processSlot0Data(const QByteArray &realDataBody);
     void processSlot1Data(const QByteArray &realDataBody);
     void processMain_TopologData(const QByteArray &realDataBody);
+    void sendNodeIdRequest();
 
     // static const quint16 FRAME_HEAD = 0xAA55;    // 帧头标识
     // static const quint16 FRAME_TAIL = 0x55AA;    // 帧尾标识

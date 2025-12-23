@@ -8,6 +8,7 @@
 #include "slotitem.h"
 #include "topologyview.h"
 #include "senddata.h"
+#include "baseset.h"
 #include <QButtonGroup>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -17,8 +18,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
     tcpSocket = new QTcpSocket(this);
+    initUiConfig();
     connect(ui->actionConnect, &QAction::triggered,
             this, &MainWindow::onActionConnectTriggered);
     connect(ui->actionMxMode, &QAction::triggered,
@@ -37,15 +38,16 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::onActionLostcontrolTriggered);
     connect(ui->actionMeasure, &QAction::triggered,
             this, &MainWindow::onActionMeasureTriggered);
+    connect(ui->actionBaseset, &QAction::triggered,
+            this, &MainWindow::onActionBaseSetTriggered);
+    connect(m_idRequestTimer, &QTimer::timeout, this, &MainWindow::sendNodeIdRequest);
     connect(tcpSocket, &QTcpSocket::disconnected, this, [this](){
         isTcpConnected = false;
         ui->actionConnect->setText("连接节点");
         // ui->tip_textEdit->append("TCP 连接异常断开");
     });
 
-    initUiConfig();
-
-
+    // initUiConfig();
     // 延迟 0ms 调用 initSlotsScene，保证 UI 完成布局后 fitInView 生效
     QTimer::singleShot(0, this, [this](){
         initSlotsSceneGeneric(slotScene0, slotItems0, ui->restslot_mainlabel, 20, 80);
@@ -76,6 +78,11 @@ void MainWindow::initUiConfig()
     topologyView = new TopologyView(this);
     lay->addWidget(topologyView);
     topologyView->drawTopology();
+    m_currentNodeName = "";
+    m_currentNodeId = 0;
+    // // 初始化身份索要定时器
+    m_idRequestTimer = new QTimer(this);
+    m_idRequestTimer->setInterval(2000);  // 定时2秒
     //时隙图初始化
     slotScene0 = new QGraphicsScene(this);
     slotScene1 = new QGraphicsScene(this);
@@ -118,6 +125,7 @@ void MainWindow::onActionConnectTriggered()
         {
             tcpSocket->close(); // 关闭TCP连接
             isTcpConnected = false; // 更新状态标记
+            m_idRequestTimer->stop(); // 断开连接时停止定时器
             // 修改Action文本为“连接”
             ui->actionConnect->setText("连接节点");
             ui->tip_textEdit->append("TCP 连接已断开");
@@ -126,7 +134,6 @@ void MainWindow::onActionConnectTriggered()
     }
 
     ConnectDialog dialog(this);
-    // 阻塞式显示对话框
     if (dialog.exec() == QDialog::Accepted)
     {
         QString ip = dialog.getIP();
@@ -137,8 +144,11 @@ void MainWindow::onActionConnectTriggered()
         if (ok)
         {
             isTcpConnected = true; // 更新状态标记为已连接
+            m_hasReceivedNodeId = false;// 重置身份接收标记
             ui->actionConnect->setText("断开连接"); // 修改Action文本
             ui->tip_textEdit->append("连接成功!");
+            // 启动定时器，开始每隔2秒发送身份索要消息
+            m_idRequestTimer->start();
         }
         else
             ui->tip_textEdit->append("连接失败!");
@@ -177,6 +187,29 @@ void MainWindow::refreshTCPDisplay()
     ui->recvlogTextEdit->setTextCursor(cursor); // 应用光标位置
     ui->recvlogTextEdit->ensureCursorVisible(); // 确保末尾内容可见
 
+}
+
+void MainWindow::sendNodeIdRequest()
+{
+    // 检查TCP连接状态，避免未连接时发送
+    if (!isTcpConnected || !tcpSocket->isOpen()) {
+        m_idRequestTimer->stop();  // 停止定时器
+        return;
+    }
+
+    // 组装身份索要消息：00 00 00
+    QByteArray sendData;
+    sendData.append((char)0x00);
+    sendData.append((char)0x00);
+    sendData.append((char)0x00);
+    // 发送数据
+    tcpSocket->write(sendData);
+    tcpSocket->flush();
+    // 打印日志
+    QString log = QString("[%1] 发送身份请求消息：00 00 00")
+                      .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    ui->tip_textEdit->append(log);
+    qDebug() << log;
 }
 
 //TCP接收数据
@@ -223,9 +256,10 @@ void MainWindow::dealTcpData()
     tcpRecvBuffer += str_rev;
 
     // 限制最大显示长度（避免UI卡死）
-    if (tcpRecvBuffer.length() > 100000)  // 100KB
+    const quint32 MAX_BYTE = 500;
+    if (tcpRecvBuffer.length() > MAX_BYTE)
     {
-        tcpRecvBuffer = tcpRecvBuffer.right(100000);
+        tcpRecvBuffer = tcpRecvBuffer.right(MAX_BYTE);
     }
 
     //调用协议解析
@@ -262,6 +296,8 @@ void MainWindow::parseTcpProtocol(const QByteArray &buffer)
         case CMD_NODE_ID:  //连接节点身份
             qDebug() << "收到节点身份消息";
             ui->tip_textEdit->append("收到节点身份消息");
+            m_idRequestTimer->stop();
+            m_hasReceivedNodeId = true; // 标记已收到身份信息
             controlPermission(dataBody); // 子函数
         break;
         case CMD_BIG_NET_SLOT:  // 大网时隙0/1消息
@@ -287,12 +323,14 @@ void MainWindow::parseTcpProtocol(const QByteArray &buffer)
             break;
         case CMD_CONTROL_NET_IND:  // 控制网络指示
             qDebug() << "收到控制网络指示";
-            ui->tip_textEdit->append("收到控制网络指示");
+            ui->tip_textEdit->append(QString("[%1] 收到控制网络指示")
+                                         .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")));
             isControl = true;
             break;
         case CMD_LOSECONTROL_IND:  // 失去控制指示
             qDebug() << "收到失去控制指示";
-            ui->tip_textEdit->append("收到失去控制指示");
+            ui->tip_textEdit->append(QString("[%1] 收到失去控制指示")
+                                         .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")));
             isLoseControl = true;
             break;
     default:
@@ -300,7 +338,6 @@ void MainWindow::parseTcpProtocol(const QByteArray &buffer)
         break;
     }
 }
-
 
 void MainWindow::onActionMxModeTriggered()
 {
@@ -319,7 +356,8 @@ void MainWindow::onActionMxModeTriggered()
         }
         QByteArray sendData;
         quint16 dataLen = 1;
-        sendData.append(reinterpret_cast<const char*>(&dataLen), 2);
+        sendData.append((quint8)((dataLen >> 8) & 0xFF));
+        sendData.append((quint8)(dataLen & 0xFF));
         quint8 cmd = 0x03;
         sendData.append(reinterpret_cast<const char*>(&cmd), 1);
         sendData.append(reinterpret_cast<const char*>(&modeByte), 1);
@@ -708,9 +746,9 @@ void MainWindow::controlPermission(const QByteArray &dataBody)
     ui->tip_textEdit->append(identityLog);
     ui->Node_ID->setText(QString("%2 (ID:0x%1)").arg(QString::number(dataByte, 16)).arg(nodeName));
     qDebug() << identityLog;
+    updateMeasureActionText();
 
     // 4. 根据节点身份控制权限
-
     if (nodeName == "MX") {
         // MX节点：拥有所有操作权限（启用所有控件）
         ui->actionSelfwork->setEnabled(true);
@@ -749,7 +787,7 @@ void MainWindow::processSlot0Data(const QByteArray &realDataBody)
                                  + "字节");
         return;
     }
-
+    bool isCurrentNodeRanging = false;
     // 遍历每个时隙（0~46）
     for (int i = 0; i < SLOT_COUNT; ++i) {
         int slotIdx = i; // 时隙0~46
@@ -765,7 +803,17 @@ void MainWindow::processSlot0Data(const QByteArray &realDataBody)
         // 解析byte2：高7位=目标节点ID，低1位=分配状态（0=已分配，1=未分配）
         quint8 toId = (byte2 >> 1) & 0x7F;   // 高7位
         bool isAllocated = (byte2 & 0x01) == 0; // 低1位：0=已分配，1=未分配
-
+        //检测当前节点是否在测距
+        if (m_currentNodeId != 0) { // 已识别当前节点
+            // 发起节点是当前节点 且 功能为测距（funcFlag=1）
+            if (fromId == m_currentNodeId && funcFlag == 1) {
+                isCurrentNodeRanging = true;// 只要有一个时隙在测距，就标记为测距中
+            }
+            // 目标节点是当前节点 且 功能为测距（可选：若需检测被测距状态）
+            if (toId == m_currentNodeId && funcFlag == 1) {
+                isCurrentNodeRanging = true;
+            }
+        }
         // 获取节点名称（无匹配则显示ID）
         QString fromName = nodeIdToName().value(fromId, QString("ID%1").arg(fromId));
         QString toName = nodeIdToName().value(toId, QString("ID%1").arg(toId));
@@ -788,6 +836,10 @@ void MainWindow::processSlot0Data(const QByteArray &realDataBody)
                  << "isAllocated=" << isAllocated;
         // qDebug() << "已执行";
     }
+    // 缓存当前节点的测距状态
+    m_nodeRangingState[m_currentNodeId] = isCurrentNodeRanging;
+    // 更新actionMeasure文本
+    updateMeasureActionText();
     qDebug() << "[时隙0处理] 完成0~46时隙配置更新";
     ui->tip_textEdit->append("[时隙0处理] 完成0~46时隙配置更新");
 }
@@ -1112,5 +1164,146 @@ void MainWindow::onActionLostcontrolTriggered()
             qDebug() << failLog;
         }
         isLoseControl = false;
+    }
+}
+
+void MainWindow::updateMeasureActionText()
+{
+    // 1. 从Node_ID标签获取当前节点名称/ID
+    QString nodeText = ui->Node_ID->text();
+    if (nodeText.contains("未知") || nodeText.contains("未检测")) {
+        ui->actionMeasure->setText("恢复测距"); // 默认文本
+        ui->actionMeasure->setEnabled(false); // 未识别节点时禁用
+        return;
+    }
+    // 2. 解析当前节点ID（从nodeIdToName反向映射）
+    m_currentNodeName = "";
+    m_currentNodeId = 0;
+    QMap<quint8, QString> idToName = nodeIdToName();
+    for (auto it = idToName.begin(); it != idToName.end(); ++it) {
+        if (nodeText.contains(it.value())) {
+            m_currentNodeName = it.value();
+            m_currentNodeId = it.key();
+            break;
+        }
+    }
+    // 3. 判断是否测距，更新action文本
+    bool isRanging = m_nodeRangingState.value(m_currentNodeId, false);
+    if (isRanging) {
+        ui->actionMeasure->setText("取消测距");
+    } else {
+        ui->actionMeasure->setText("恢复测距");
+    }
+    ui->actionMeasure->setEnabled(true); // 识别节点后启用
+}
+
+void MainWindow::onActionMeasureTriggered()
+{
+    if (!tcpSocket || tcpSocket->state() != QAbstractSocket::ConnectedState) {
+        QString errorLog = QString("[%1] 发送失败：请先建立TCP连接！")
+                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(errorLog);
+        qDebug() << errorLog;
+        return;
+    }
+    // 检查当前节点是否识别
+    if (m_currentNodeName.isEmpty() || m_currentNodeId == 0) {
+        QString errorLog = QString("[%1] 发送测距指令失败：未识别当前节点！")
+                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(errorLog);
+        qDebug() << errorLog;
+        return;
+    }
+    //  判断当前文本，确定指令码
+    quint8 cmd = 0;
+    QString logPrefix = "";
+    if (ui->actionMeasure->text() == "取消测距") {
+        cmd = 0x0D; // 取消测距指令码
+        logPrefix = "发送取消测距指令";
+    } else {
+        cmd = 0x0E; // 恢复测距指令码
+        logPrefix = "发送恢复测距指令";
+    }
+    QByteArray sendData;
+    quint16 dataLen = 0;
+    sendData.append(reinterpret_cast<const char*>(&dataLen), 2);
+    sendData.append(reinterpret_cast<const char*>(&cmd), 1);
+    qint64 sentBytes = tcpSocket->write(sendData);
+    if (sentBytes == sendData.size()) {
+        QString successLog = QString("[%1] %2（指令码：0x%3")
+                                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                                 .arg(logPrefix)
+                                 .arg(QString::number(cmd, 16).toUpper());
+        ui->tip_textEdit->append(successLog);
+        qDebug() << successLog;
+    } else {
+        QString failLog = QString("[%1] %2失败：仅发送%3字节（预期%4字节）")
+                              .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                              .arg(logPrefix)
+                              .arg(sentBytes)
+                              .arg(sendData.size());
+        ui->tip_textEdit->append(failLog);
+        qDebug() << failLog;
+    }
+}
+
+void MainWindow::onActionBaseSetTriggered()
+{
+    BaseSet dialog(this);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        // 1. 获取选择的基座信息
+        QMap<int, quint8> baseIds = dialog.selectedBaseIds();
+        QMap<int, QString> baseNames = dialog.selectedBaseNames();
+
+        // 2. 检查TCP连接
+        if (!tcpSocket || tcpSocket->state() != QAbstractSocket::ConnectedState) {
+            QString errorLog = QString("[%1] 基座设置失败：请先建立TCP连接！")
+                                   .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+            ui->tip_textEdit->append(errorLog);
+            qDebug() << errorLog;
+            return;
+        }
+        // 3. 组装数据帧（数据长度2字节 + 指令码1字节 + 数据体6字节）
+        QByteArray sendData;
+        quint16 dataLen = 6; // 数据体长度（3个基座×2字节）
+        quint16 bigEndianLen = qToBigEndian(dataLen); // 转换为大端序
+        sendData.append(reinterpret_cast<const char*>(&bigEndianLen), 2);
+
+        quint8 cmd = 0x13;
+        sendData.append(reinterpret_cast<const char*>(&cmd), 1);
+
+        // 组装数据体（3个基座，每个2字节）
+        for (int i = 0; i < 3; ++i) {
+            quint8 baseSeq = static_cast<quint8>(i); // 基座序号：0=基座1，1=基座2，2=基座3
+            quint8 nodeId = baseIds.value(i);
+            quint8 nodeIdByte = (nodeId << 1) & 0xFE; // 高7位为ID，低1位置0
+
+            sendData.append(reinterpret_cast<const char*>(&baseSeq), 1);
+            sendData.append(reinterpret_cast<const char*>(&nodeIdByte), 1);
+        }
+
+        // 4. 发送数据
+        tcpSocket->flush();
+        qint64 sentBytes = tcpSocket->write(sendData);
+
+        // 5. 打印日志
+        if (sentBytes == sendData.size()) {
+            // 组装日志内容
+            QString log = QString("[%1] 基座设置完成：基座1：%2 基座2：%3 基座3：%4")
+                              .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                              .arg(baseNames.value(0))
+                              .arg(baseNames.value(1))
+                              .arg(baseNames.value(2));
+            ui->tip_textEdit->append(log);
+            qDebug() << log << "发送数据：" << sendData.toHex(' ').toUpper();
+        } else {
+            QString failLog = QString("[%1] 基座设置指令发送失败：仅发送%2字节（预期%3字节）")
+                                  .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                                  .arg(sentBytes)
+                                  .arg(sendData.size());
+            ui->tip_textEdit->append(failLog);
+            qDebug() << failLog;
+        }
     }
 }

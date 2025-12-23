@@ -9,6 +9,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    baseset.cpp \
     connectdialog.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -20,6 +21,7 @@ SOURCES += \
     topologyview.cpp
 
 HEADERS += \
+    baseset.h \
     connectdialog.h \
     mainwindow.h \
     mxmodedialog.h \
@@ -30,6 +32,7 @@ HEADERS += \
     topologyview.h
 
 FORMS += \
+    baseset.ui \
     connectdialog.ui \
     mainwindow.ui \
     mxmodedialog.ui \

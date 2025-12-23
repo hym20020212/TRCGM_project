@@ -695,6 +695,7 @@
    <addaction name="actionLostcontrol"/>
    <addaction name="actionSendData"/>
    <addaction name="actionMeasure"/>
+   <addaction name="actionBaseset"/>
   </widget>
   <action name="actionConnect">
    <property name="icon">
@@ -815,9 +816,22 @@
     <string>取消测距</string>
    </property>
    <property name="font">
-    <font>
-     <pointsize>9</pointsize>
-    </font>
+    <font/>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
+   </property>
+  </action>
+  <action name="actionBaseset">
+   <property name="icon">
+    <iconset resource="images.qrc">
+     <normaloff>:/new/prefix1/image/node_open.png</normaloff>:/new/prefix1/image/node_open.png</iconset>
+   </property>
+   <property name="text">
+    <string>基座设置</string>
+   </property>
+   <property name="toolTip">
+    <string>基座设置</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::TextHeuristicRole</enum>
