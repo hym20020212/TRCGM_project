@@ -41,8 +41,6 @@ private slots:
     void sendDataToNode(const QString &targetNode, const QString &payload);
     void on_senddataclear_pushButton_clicked();
     // void on_recvdataclear_pushButton_clicked();
-
-
     void on_recvdataclear_pushButton_clicked();
     void updateMeasureActionText();
     void on_netlunch_pushButton_clicked();
@@ -58,6 +56,7 @@ private:
     QVector<SlotItem*> slotItems1;              // 存放 80 个 SlotItem 指针
     QVector<SlotItem*> slotItems2;
     QString tcpRecvBuffer;   // TCP 接收显示缓存
+    QString tcpSendBuffer;
     QMap<int, bool> m_nodeRangingState; // 缓存节点测距状态：key=节点ID，value=是否测距
     QString m_currentNodeName; // 当前连接的节点名称（如MX/GZ1/GZ2）
     quint8 m_currentNodeId; // 当前连接的节点ID
@@ -78,6 +77,7 @@ private:
                                 const QString &fromName,
                                 const QString &toName);
     void parseTcpProtocol(const QByteArray &buf);
+    void printsenddata(const QByteArray &data);
     void controlPermission(const QByteArray &dataBody);
     void parseBigNetSlotData(const QByteArray &dataBody);
     void recvdataFromNode(const QByteArray &dataBody);

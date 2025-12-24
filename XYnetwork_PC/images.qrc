@@ -53,5 +53,8 @@
         <file>image/terminal_yellow.png</file>
         <file>image/unconnected.png</file>
         <file>image/unknown_color.png</file>
+        <file>image/ip.png</file>
+        <file>image/net_off.png</file>
+        <file>image/net_on.png</file>
     </qresource>
 </RCC>

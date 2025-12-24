@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>825</width>
-    <height>489</height>
+    <width>875</width>
+    <height>561</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -71,7 +71,14 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="recvlogTextEdit"/>
+           <widget class="QTextEdit" name="recvlogTextEdit"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="colorHintLabel">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -138,7 +145,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="sendlogTextEdit"/>
+           <widget class="QTextEdit" name="sendlogTextEdit"/>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_10">
@@ -662,7 +669,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>825</width>
+     <width>875</width>
      <height>18</height>
     </rect>
    </property>
@@ -687,15 +694,33 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionConnect"/>
-   <addaction name="actionMxMode"/>
-   <addaction name="actionReplace"/>
    <addaction name="actionSelfwork"/>
    <addaction name="actionControl"/>
    <addaction name="actionLostcontrol"/>
-   <addaction name="actionSendData"/>
+   <addaction name="actionjoinstart"/>
+   <addaction name="actionquitstart"/>
    <addaction name="actionMeasure"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_2">
+   <property name="windowTitle">
+    <string>toolBar_2</string>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonStyle::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>LeftToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionConnect"/>
+   <addaction name="actionMxMode"/>
+   <addaction name="actionReplace"/>
+   <addaction name="actionSendData"/>
    <addaction name="actionBaseset"/>
+   <addaction name="actionApplyslot"/>
+   <addaction name="actionCancelslot"/>
   </widget>
   <action name="actionConnect">
    <property name="icon">
@@ -807,7 +832,7 @@
   <action name="actionMeasure">
    <property name="icon">
     <iconset resource="images.qrc">
-     <normaloff>:/new/prefix1/image/gateway.png</normaloff>:/new/prefix1/image/gateway.png</iconset>
+     <normaloff>:/new/prefix1/image/7115076.png</normaloff>:/new/prefix1/image/7115076.png</iconset>
    </property>
    <property name="text">
     <string>取消测距</string>
@@ -832,6 +857,66 @@
    </property>
    <property name="toolTip">
     <string>基座设置</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
+   </property>
+  </action>
+  <action name="actionjoinstart">
+   <property name="icon">
+    <iconset resource="images.qrc">
+     <normaloff>:/new/prefix1/image/gateway.png</normaloff>:/new/prefix1/image/gateway.png</iconset>
+   </property>
+   <property name="text">
+    <string>入网启动</string>
+   </property>
+   <property name="toolTip">
+    <string>入网启动</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
+   </property>
+  </action>
+  <action name="actionquitstart">
+   <property name="icon">
+    <iconset resource="images.qrc">
+     <normaloff>:/new/prefix1/image/gateway_gray.png</normaloff>:/new/prefix1/image/gateway_gray.png</iconset>
+   </property>
+   <property name="text">
+    <string>退网启动</string>
+   </property>
+   <property name="toolTip">
+    <string>退网启动</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
+   </property>
+  </action>
+  <action name="actionApplyslot">
+   <property name="icon">
+    <iconset resource="images.qrc">
+     <normaloff>:/new/prefix1/image/net_on.png</normaloff>:/new/prefix1/image/net_on.png</iconset>
+   </property>
+   <property name="text">
+    <string>申请时隙</string>
+   </property>
+   <property name="toolTip">
+    <string>申请时隙</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
+   </property>
+  </action>
+  <action name="actionCancelslot">
+   <property name="icon">
+    <iconset resource="images.qrc">
+     <normaloff>:/new/prefix1/image/net_off.png</normaloff>:/new/prefix1/image/net_off.png</iconset>
+   </property>
+   <property name="text">
+    <string>取消时隙</string>
+   </property>
+   <property name="toolTip">
+    <string>取消时隙</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::TextHeuristicRole</enum>

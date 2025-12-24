@@ -83,6 +83,13 @@ void MainWindow::initUiConfig()
     // // 初始化身份索要定时器
     m_idRequestTimer = new QTimer(this);
     m_idRequestTimer->setInterval(2000);  // 定时2秒
+
+    ui->colorHintLabel->setText(
+        "<span style='color:#0000FF;'>数据体长度</span> | "
+        "<span style='color:#FF0000;'>指令码</span> | "
+        "<span style='color:#000000;'>数据体</span> | "
+        "<span style='color:#808080;'>无效帧</span>"
+        );
     //时隙图初始化
     slotScene0 = new QGraphicsScene(this);
     slotScene1 = new QGraphicsScene(this);
@@ -181,13 +188,71 @@ bool MainWindow::connectToNode(const QString &ip, int port)
 void MainWindow::refreshTCPDisplay()
 {
 
-    ui->recvlogTextEdit->setPlainText(tcpRecvBuffer);
+    // ui->recvlogTextEdit->setPlainText(tcpRecvBuffer);
+    // QTextCursor cursor = ui->recvlogTextEdit->textCursor();
+    // cursor.movePosition(QTextCursor::End); // 光标移到末尾
+    // ui->recvlogTextEdit->setTextCursor(cursor); // 应用光标位置
+    // ui->recvlogTextEdit->ensureCursorVisible(); // 确保末尾内容可见
+    ui->recvlogTextEdit->setHtml(tcpRecvBuffer);
     QTextCursor cursor = ui->recvlogTextEdit->textCursor();
     cursor.movePosition(QTextCursor::End); // 光标移到末尾
     ui->recvlogTextEdit->setTextCursor(cursor); // 应用光标位置
     ui->recvlogTextEdit->ensureCursorVisible(); // 确保末尾内容可见
-
 }
+
+void MainWindow::printsenddata(const QByteArray &data)
+{
+    if (data.isEmpty()) return; // 空数据直接返回
+    QString coloredHex; // 带颜色的Hex字符串
+    const int LEN_BYTE_COUNT = 2;  // 前2字节（数据长度）
+    const int CMD_BYTE_INDEX = 2;  // 第3字节（指令码，索引2）
+    // 1. 按字节遍历，为不同部分设置颜色
+    for (int i = 0; i < data.size(); ++i)
+    {
+        // 转换为两位十六进制字符串
+        QString hex = QString("%1").arg(static_cast<quint8>(data[i]), 2, 16, QChar('0')).toUpper();
+        QString color;
+        // 前2字节：蓝色
+        if (i < LEN_BYTE_COUNT) {
+            color = "#0000FF"; // 蓝色
+        }
+        // 第3字节：红色
+        else if (i == CMD_BYTE_INDEX) {
+            color = "#FF0000"; // 红色
+        }
+        // 后续字节：黑色
+        else {
+            color = "#000000"; // 黑色
+        }
+        // 拼接带颜色的HTML标签
+        coloredHex += QString("<span style='color:%1;'>%2 </span>").arg(color).arg(hex);
+    }
+    // 2. 添加时间戳（可选，按发送时间标注）
+    QDateTime now = QDateTime::currentDateTime();
+    QString timePrefix = QString("<b>[%1] ：</b><br/>").arg(now.toString("yyyy-MM-dd hh:mm:ss"));
+    QString sendContent =timePrefix + coloredHex + "<br/>"; // 换行分隔
+    // 3. 追加到发送缓冲区，限制最大长度（避免UI卡顿）
+    tcpSendBuffer += sendContent;
+    const quint32 MAX_SEND_CHAR = 5000; // 富文本字符数限制
+    if (tcpSendBuffer.length() > MAX_SEND_CHAR)
+    {
+        tcpSendBuffer = tcpSendBuffer.right(MAX_SEND_CHAR);
+        // 补全未闭合的HTML标签（防止样式错乱）
+        int openSpan = tcpSendBuffer.count("<span");
+        int closeSpan = tcpSendBuffer.count("</span>");
+        for (int i = 0; i < (openSpan - closeSpan); ++i) {
+            tcpSendBuffer += "</span>";
+        }
+    }
+
+    // 4. 显示到sendlogTextEdit并定位光标到末尾
+    ui->sendlogTextEdit->setHtml(tcpSendBuffer);
+    QTextCursor cursor = ui->sendlogTextEdit->textCursor();
+    cursor.movePosition(QTextCursor::End); // 光标移到末尾
+    ui->sendlogTextEdit->setTextCursor(cursor);
+    ui->sendlogTextEdit->ensureCursorVisible(); // 确保末尾内容可见
+}
+
 
 void MainWindow::sendNodeIdRequest()
 {
@@ -217,8 +282,20 @@ void MainWindow::dealTcpData()
 {
     QByteArray buffer = tcpSocket->readAll();
     if (buffer.isEmpty()) return;
-
     QString str_rev;  // 最终显示到文本框的内容
+
+    //解析帧结构，区分长度、指令码、数据体 =====
+    QString coloredHex; // 带颜色的Hex字符串
+    const int FRAME_FIXED_LEN = 3; // 固定帧长度（2字节长度+1字节指令码）
+    bool isFrameValid = false;
+    quint16 dataLen = 0;
+    if (buffer.size() >= FRAME_FIXED_LEN) {
+        // 解析数据长度（与parseTcpProtocol逻辑一致）
+        dataLen = (static_cast<quint8>(buffer.at(0)) << 8) | static_cast<quint8>(buffer.at(1));
+        int expectedFrameLen = FRAME_FIXED_LEN + dataLen;
+        // 有效帧条件：总长度匹配声明的长度
+        isFrameValid = (buffer.size() == expectedFrameLen);
+    }
 
     //字符串解析：Hex 模式orASCII 模式
     if (!ui->checkBoxHexR->isChecked())
@@ -228,44 +305,99 @@ void MainWindow::dealTcpData()
     }
     else
     {
-        // Hex 显示
-        QString hexStr = buffer.toHex().toUpper();
-        // 预分配内存避免崩溃
-        QString spaced;
-        spaced.reserve(buffer.size() * 3);
-        for (int i = 0; i < hexStr.length(); i += 2)
+        // Hex模式：按帧结构分颜色显示
+        QByteArray lenBytes = buffer.left(2);   // 数据长度字节（前2字节）
+        QByteArray cmdByte = buffer.mid(2, 1);  // 指令码字节（第3字节）
+        QByteArray bodyBytes = buffer.mid(3);   // 数据体字节（第4字节及以后）
+
+        // 定义颜色：长度(蓝)、指令码(红)、数据体(黑)
+        QString colorLen = "#0000FF";    // 蓝色
+        QString colorCmd = "#FF0000";    // 红色
+        QString colorBody = "#000000";   // 黑色
+        QString colorInvalid = "#808080";// 灰色（帧无效时）
+
+        // 拼接带颜色的Hex段
+        if (isFrameValid)
         {
-            spaced += hexStr.mid(i, 2);
-            spaced += " ";
+            // 1. 数据长度字节（红色）
+            for (int i = 0; i < lenBytes.size(); ++i)
+            {
+                QString hex = QString("%1").arg(static_cast<quint8>(lenBytes[i]), 2, 16, QChar('0')).toUpper();
+                coloredHex += QString("<span style='color:%1;'>%2 </span>").arg(colorLen).arg(hex);
+            }
+            // 2. 指令码字节（蓝色）
+            QString cmdHex = QString("%1").arg(static_cast<quint8>(cmdByte[0]), 2, 16, QChar('0')).toUpper();
+            coloredHex += QString("<span style='color:%1;'>%2 </span>").arg(colorCmd).arg(cmdHex);
+            // 3. 数据体字节（绿色）
+            for (int i = 0; i < bodyBytes.size(); ++i)
+            {
+                QString hex = QString("%1").arg(static_cast<quint8>(bodyBytes[i]), 2, 16, QChar('0')).toUpper();
+                coloredHex += QString("<span style='color:%1;'>%2 </span>").arg(colorBody).arg(hex);
+            }
         }
-        str_rev = spaced;
+        else
+        {
+            // 帧无效：全部灰色显示
+            QString hexStr = buffer.toHex().toUpper();
+            for (int i = 0; i < hexStr.length(); i += 2)
+            {
+                QString hex = hexStr.mid(i, 2);
+                coloredHex += QString("<span style='color:%1;'>%2 </span>").arg(colorInvalid).arg(hex);
+            }
+        }
+        str_rev = coloredHex;
+        // // Hex 显示
+        // QString hexStr = buffer.toHex().toUpper();
+        // // 预分配内存避免崩溃
+        // QString spaced;
+        // spaced.reserve(buffer.size() * 3);
+        // for (int i = 0; i < hexStr.length(); i += 2)
+        // {
+        //     spaced += hexStr.mid(i, 2);
+        //     spaced += " ";
+        // }
+        // str_rev = spaced;
     }
 
     //添加时间戳
     if (ui->RecTimeZone->isChecked())
     {
+        // QDateTime now = QDateTime::currentDateTime();
+        // QString timePrefix = "[" + now.toString("yyyy-MM-dd hh:mm:ss") + "]\n";
+        // str_rev = timePrefix + str_rev;
         QDateTime now = QDateTime::currentDateTime();
-        QString timePrefix = "[" + now.toString("yyyy-MM-dd hh:mm:ss") + "]\n";
+        QString timePrefix = QString("<b>[%1]</b><br/>").arg(now.toString("yyyy-MM-dd hh:mm:ss")); // 加粗时间戳
         str_rev = timePrefix + str_rev;
     }
 
     // 换行
-    str_rev += "\r\n";
+    // str_rev += "\r\n";
+    str_rev += "<br/>";
 
     //追加到缓冲区（为了不让UI崩溃，需要限制长度）
     tcpRecvBuffer += str_rev;
 
     // 限制最大显示长度（避免UI卡死）
-    const quint32 MAX_BYTE = 500;
-    if (tcpRecvBuffer.length() > MAX_BYTE)
+    // const quint32 MAX_BYTE = 500;
+    // if (tcpRecvBuffer.length() > MAX_BYTE)
+    // {
+    //     tcpRecvBuffer = tcpRecvBuffer.right(MAX_BYTE);
+    // }
+    const quint32 MAX_CHAR = 20000; // 富文本字符数限制，比纯文本大
+    if (tcpRecvBuffer.length() > MAX_CHAR)
     {
-        tcpRecvBuffer = tcpRecvBuffer.right(MAX_BYTE);
+        // 截取末尾，避免HTML标签截断导致样式错乱
+        tcpRecvBuffer = tcpRecvBuffer.right(MAX_CHAR);
+        // 修复可能的标签截断（简单处理：补全未闭合的<span>）
+        if (tcpRecvBuffer.contains("<span") && !tcpRecvBuffer.contains("</span>"))
+        {
+            tcpRecvBuffer += "</span>";
+        }
     }
 
     //调用协议解析
     parseTcpProtocol(buffer);
     refreshTCPDisplay();
-
 }
 
 //数据解析
@@ -362,6 +494,7 @@ void MainWindow::onActionMxModeTriggered()
         sendData.append(reinterpret_cast<const char*>(&cmd), 1);
         sendData.append(reinterpret_cast<const char*>(&modeByte), 1);
         qint64 sentBytes = tcpSocket->write(sendData);
+        printsenddata(sendData);
         if (sentBytes == sendData.size()) {
             QString successLog = QString("[%1] 发送MX%2指令")
                                      .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
@@ -623,32 +756,36 @@ void MainWindow::sendDataToNode(const QString &targetNode, const QString &payloa
     tcpSocket->write(packet);
     tcpSocket->flush();
 
-    // -------------------------- 5. 更新发送日志（保留原有逻辑，适配处理后的数据） --------------------------
-    QString displayPayload;
-    if (isHexMode) {
-        // Hex模式日志：显示“头字节+输入数据”的Hex格式（带空格）
-        QByteArray allData = inputData;
-        displayPayload.reserve(allData.size() * 3 - 1);
-        QString hexStr = allData.toHex().toUpper();
-        for (int i = 0; i < hexStr.length(); i += 2) {
-            displayPayload += hexStr.mid(i, 2);
-            if (i + 2 < hexStr.length()) displayPayload += " ";
-        }
-        displayPayload = "[Hex] " + displayPayload; // 日志标注Hex模式
-    } else {
-        // ASCII模式日志：显示原始输入
-        displayPayload = payload;
-    }
+    // -------------------------- 5. 更新发送日志--------------------------
+    // QString displayPayload;
+    // if (isHexMode) {
+    //     // Hex模式日志：显示“头字节+输入数据”的Hex格式（带空格）
+    //     QByteArray allData = inputData;
+    //     displayPayload.reserve(allData.size() * 3 - 1);
+    //     QString hexStr = allData.toHex().toUpper();
+    //     for (int i = 0; i < hexStr.length(); i += 2) {
+    //         displayPayload += hexStr.mid(i, 2);
+    //         if (i + 2 < hexStr.length()) displayPayload += " ";
+    //     }
+    //     displayPayload = "[Hex] " + displayPayload; // 日志标注Hex模式
+    // } else {
+    //     // ASCII模式日志：显示原始输入
+    //     displayPayload = payload;
+    // }
 
     // 拼接日志（带时间戳/无时间戳）
     QString timeStr = ui->SendTimeZone->isChecked()
                           ? QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
                           : "";
+    // QString log = timeStr.isEmpty()
+    //                   ? QString("发送到 %1 :\n%2").arg(targetNode).arg(displayPayload)
+    //                   : QString("[%1] 发送到 %2 :\n%3").arg(timeStr).arg(targetNode).arg(displayPayload);
+    // ui->sendlogTextEdit->appendPlainText(log);
     QString log = timeStr.isEmpty()
-                      ? QString("发送到 %1 :\n%2").arg(targetNode).arg(displayPayload)
-                      : QString("[%1] 发送到 %2 :\n%3").arg(timeStr).arg(targetNode).arg(displayPayload);
-
-    ui->sendlogTextEdit->appendPlainText(log);
+                      ? QString("发送数据到 %1 ").arg(targetNode)
+                      : QString("[%1] 发送数据到 %2 ").arg(timeStr).arg(targetNode);
+    ui->tip_textEdit->append(log);
+    printsenddata(packet);
 }
 
 void MainWindow::on_senddataclear_pushButton_clicked()
@@ -944,7 +1081,7 @@ void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
         // 解析基座序号（第1字节）
         quint8 baseSeq = static_cast<quint8>(realDataBody.at(baseOffset));
         // 解析节点ID（第2字节：前7bit为ID，第8bit置0）
-        quint8 nodeId = (static_cast<quint8>(realDataBody.at(baseOffset + 1)) >> 1) & 0x3F;
+        quint8 nodeId = (static_cast<quint8>(realDataBody.at(baseOffset + 1)) >> 1) & 0x7F;
 
         // 映射节点ID到名称
         QString nodeName = nodeIdToName().value(nodeId, QString("未知节点(0x%1)").arg(QString::number(nodeId, 16)));
@@ -962,7 +1099,7 @@ void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
         quint8 stateByte = static_cast<quint8>(realDataBody.at(stateOffset));
 
         // 解析节点ID（前7bit）和入网状态（第8bit：0=入网，1=未入网）
-        quint8 nodeId = (stateByte >> 1) & 0x3F;
+        quint8 nodeId = (stateByte >> 1) & 0x7F;
         bool isJoined = (stateByte & 0x01) == 0; // 第8bit为0表示入网，1表示未入网
 
         // 映射节点ID到名称
@@ -1044,6 +1181,7 @@ void MainWindow::onActionSelfworkTriggered()
     quint8 cmd = 0x02;
     sendData.append(reinterpret_cast<const char*>(&cmd), 1);
     qint64 sentBytes = tcpSocket->write(sendData);
+    printsenddata(sendData);
     if (sentBytes == sendData.size()) {
         QString successLog = QString("[%1] 发送自主工作指令")
                                  .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
@@ -1100,6 +1238,7 @@ void MainWindow::onActionControlTriggered()
         quint8 cmd = 0x0A;
         sendData.append(reinterpret_cast<const char*>(&cmd), 1);
         qint64 sentBytes = tcpSocket->write(sendData);
+        printsenddata(sendData);
         if (sentBytes == sendData.size()) {
             QString successLog = QString("[%1] 控制网络确认")
                                      .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
@@ -1143,6 +1282,7 @@ void MainWindow::onActionLostcontrolTriggered()
         quint8 cmd = 0x0C;
         sendData.append(reinterpret_cast<const char*>(&cmd), 1);
         qint64 sentBytes = tcpSocket->write(sendData);
+        printsenddata(sendData);
         if (sentBytes == sendData.size()) {
             QString successLog = QString("[%1] 失去控制确认")
                                      .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
@@ -1229,6 +1369,7 @@ void MainWindow::onActionMeasureTriggered()
     sendData.append(reinterpret_cast<const char*>(&dataLen), 2);
     sendData.append(reinterpret_cast<const char*>(&cmd), 1);
     qint64 sentBytes = tcpSocket->write(sendData);
+    printsenddata(sendData);
     if (sentBytes == sendData.size()) {
         QString successLog = QString("[%1] %2（指令码：0x%3")
                                  .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
@@ -1269,10 +1410,8 @@ void MainWindow::onActionBaseSetTriggered()
         quint16 dataLen = 6; // 数据体长度（3个基座×2字节）
         quint16 bigEndianLen = qToBigEndian(dataLen); // 转换为大端序
         sendData.append(reinterpret_cast<const char*>(&bigEndianLen), 2);
-
         quint8 cmd = 0x13;
         sendData.append(reinterpret_cast<const char*>(&cmd), 1);
-
         // 组装数据体（3个基座，每个2字节）
         for (int i = 0; i < 3; ++i) {
             quint8 baseSeq = static_cast<quint8>(i); // 基座序号：0=基座1，1=基座2，2=基座3
@@ -1282,10 +1421,10 @@ void MainWindow::onActionBaseSetTriggered()
             sendData.append(reinterpret_cast<const char*>(&baseSeq), 1);
             sendData.append(reinterpret_cast<const char*>(&nodeIdByte), 1);
         }
-
         // 4. 发送数据
         tcpSocket->flush();
         qint64 sentBytes = tcpSocket->write(sendData);
+        printsenddata(sendData);
 
         // 5. 打印日志
         if (sentBytes == sendData.size()) {
