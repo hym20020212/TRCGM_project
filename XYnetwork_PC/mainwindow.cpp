@@ -9,6 +9,7 @@
 #include "topologyview.h"
 #include "senddata.h"
 #include "baseset.h"
+#include "applyslot.h"
 #include <QButtonGroup>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -40,12 +41,20 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::onActionMeasureTriggered);
     connect(ui->actionBaseset, &QAction::triggered,
             this, &MainWindow::onActionBaseSetTriggered);
+    connect(ui->actionJoinstart, &QAction::triggered,
+            this, &MainWindow::onActionJoinstartTriggered);
+    connect(ui->actionQuitstart, &QAction::triggered,
+            this, &MainWindow::onActionQuitstartTriggered);
+    connect(ui->actionApplyslot, &QAction::triggered,
+            this, &MainWindow::onActionApplyslotTriggered);
     connect(m_idRequestTimer, &QTimer::timeout, this, &MainWindow::sendNodeIdRequest);
     connect(tcpSocket, &QTcpSocket::disconnected, this, [this](){
         isTcpConnected = false;
         ui->actionConnect->setText("连接节点");
         // ui->tip_textEdit->append("TCP 连接异常断开");
     });
+    connect(replaceChainDialog, &ReplaceChainDialog::replaceChainConfirmed,
+            this, &MainWindow::onReplaceChainConfirmed);
 
     // initUiConfig();
     // 延迟 0ms 调用 initSlotsScene，保证 UI 完成布局后 fitInView 生效
@@ -59,6 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
         ui->slotcase1_View->fitInView(slotScene1->sceneRect(), Qt::KeepAspectRatio);
         ui->slotcase2_View->fitInView(slotScene2->sceneRect(), Qt::KeepAspectRatio);
     });
+
+    // topologyView->updateNodeDeviceId("MX", "000-0000");
 }
 
 MainWindow::~MainWindow()
@@ -73,6 +84,7 @@ void MainWindow::initUiConfig()
     ui->tip_textEdit->setReadOnly(true);
     //拓扑图初始化
     QVBoxLayout *lay = new QVBoxLayout(ui->netTopologyView);
+    replaceChainDialog = new ReplaceChainDialog(this);
     lay->setContentsMargins(0,0,0,0);
     ui->netTopologyView->setLayout(lay);
     topologyView = new TopologyView(this);
@@ -122,6 +134,7 @@ void MainWindow::initUiConfig()
     ui->SendTimeZone->setChecked(1);
 
     tcpRecvBuffer = "";
+    num_freeslot = 0;
 }
 
 void MainWindow::onActionConnectTriggered()
@@ -269,6 +282,7 @@ void MainWindow::sendNodeIdRequest()
     sendData.append((char)0x00);
     // 发送数据
     tcpSocket->write(sendData);
+    printsenddata(sendData);
     tcpSocket->flush();
     // 打印日志
     QString log = QString("[%1] 发送身份请求消息：00 00 00")
@@ -516,13 +530,9 @@ void MainWindow::onActionMxModeTriggered()
 
 void MainWindow::onActionReplaceTriggered()
 {
-    ReplaceChainDialog dialog(this);
-
-    if (dialog.exec() == QDialog::Accepted)
-    {
-        int chainLevel = dialog.selectedChain();
-        ui->tip_textEdit->append("当前为 " + QString::number(chainLevel) + " 级替换链");
-    }
+    replaceChainDialog->show();
+    replaceChainDialog->raise();
+    replaceChainDialog->activateWindow();
 }
 
 void MainWindow::initSlotsSceneGeneric(QGraphicsScene *scene,
@@ -873,15 +883,14 @@ void MainWindow::controlPermission(const QByteArray &dataBody)
     // 2. 解析1字节数据：高7位为节点ID，低1位置0
     quint8 dataByte = static_cast<quint8>(dataBody.at(0));
     quint8 nodeId = (dataByte >> 1) & 0x7F; // 右移1位丢弃低1位，取高7位ID
-    QString nodeName = nodeIdToName().value(nodeId, QString("未知节点(ID:0x%1)").arg(QString::number(nodeId, 16)));
+    QString nodeName = nodeIdToFunc().value(nodeId, QString("未知节点(ID:0x%1)").arg(QString::number(nodeId, 16)));
 
     // 3. 打印节点身份到tip_textEdit
-    QString identityLog = QString("[%1] 检测到节点身份：%2 (ID:0x%3)")
+    QString identityLog = QString("[%1] 检测到节点身份：%2 ")
                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
-                              .arg(nodeName)
-                              .arg(QString::number(dataByte, 16));
+                              .arg(nodeName);
     ui->tip_textEdit->append(identityLog);
-    ui->Node_ID->setText(QString("%2 (ID:0x%1)").arg(QString::number(dataByte, 16)).arg(nodeName));
+    ui->Node_ID->setText(QString("%1 ").arg(nodeName));
     qDebug() << identityLog;
     updateMeasureActionText();
 
@@ -1021,51 +1030,78 @@ void MainWindow::processSlot1Data(const QByteArray &realDataBody)
     }
     qDebug() << "[时隙1处理] 完成47~79时隙配置更新";
     ui->tip_textEdit->append("[时隙1处理] 完成47~79时隙配置更新");
+    quint8 num_freeslotByte = static_cast<quint8>(realDataBody.at(realDataBody.size() - 8));
+    // 赋值给全局静态变量
+    num_freeslot = static_cast<int>(num_freeslotByte);
+    qDebug() << "[时隙1处理] 解析到动态时隙数量：" << num_freeslot;
+    ui->tip_textEdit->append(QString("[时隙1处理] 动态时隙数量：%1").arg(num_freeslot));
+
 }
 
-static QMap<quint8, QString> nodeIdToName() {
-    QMap<quint8, QString> map;
-    // 大网节点ID（7bit）
-    map.insert(0b0000000, "MX");       // 000-0000
-    map.insert(0b0010000, "GZ1");      // 001-0000
-    map.insert(0b0010001, "GZ2");      // 001-0001
-    map.insert(0b0100000, "BY1");      // 010-0000
-    map.insert(0b0100001, "BY2");      // 010-0001
-    map.insert(0b0100010, "BY3");      // 010-0010
-    map.insert(0b0100011, "BY4");      // 010-0011
-    map.insert(0b0100100, "BY5");      // 010-0100
-    map.insert(0b0100101, "BY6");      // 010-0101
-    map.insert(0b0110000, "ZJ0");      // 011-0000
-    map.insert(0b0110001, "ZJ1");      // 011-0001
-    map.insert(0b0110010, "ZJ2");      // 011-0010
-    map.insert(0b0110011, "ZJ3");      // 011-0011
-    // 小网ZJ节点ID
-    map.insert(0b1000000, "DJ1");
-    map.insert(0b1000001, "DJ2");
-    map.insert(0b1000010, "DJ3");
-    map.insert(0b1000011, "DJ4");
-    map.insert(0b1000100, "DJ5");
-    map.insert(0b1000101, "DJ6");
-    map.insert(0b1000110, "DJ7");
-    map.insert(0b1000111, "DJ8");
-    map.insert(0b1001000, "DJ9");
-    map.insert(0b1001001, "DJ10");
-    map.insert(0b1001010, "DJ11");
-    map.insert(0b1001011, "DJ12");
-    map.insert(0b1001100, "DJ13");
-    map.insert(0b1001101, "DJ14");
-    map.insert(0b1001110, "DJ15");
-    map.insert(0b1001111, "DJ16");
-    map.insert(0b1010000, "DJ17");
-    map.insert(0b1010001, "DJ18");
-    map.insert(0b1010010, "DJ19");
-    map.insert(0b1010011, "DJ20");
-    return map;
+// static QMap<quint8, QString> nodeIdToName() {
+//     QMap<quint8, QString> map;
+//     // 大网节点ID（7bit）
+//     map.insert(0b0000000, "MX");       // 000-0000
+//     map.insert(0b0010000, "GZ1");      // 001-0000
+//     map.insert(0b0010001, "GZ2");      // 001-0001
+//     map.insert(0b0100000, "BY1");      // 010-0000
+//     map.insert(0b0100001, "BY2");      // 010-0001
+//     map.insert(0b0100010, "BY3");      // 010-0010
+//     map.insert(0b0100011, "BY4");      // 010-0011
+//     map.insert(0b0100100, "BY5");      // 010-0100
+//     map.insert(0b0100101, "BY6");      // 010-0101
+//     map.insert(0b0110000, "ZJ0");      // 011-0000
+//     map.insert(0b0110001, "ZJ1");      // 011-0001
+//     map.insert(0b0110010, "ZJ2");      // 011-0010
+//     map.insert(0b0110011, "ZJ3");      // 011-0011
+//     // 小网ZJ节点ID
+//     map.insert(0b1000000, "DJ1");
+//     map.insert(0b1000001, "DJ2");
+//     map.insert(0b1000010, "DJ3");
+//     map.insert(0b1000011, "DJ4");
+//     map.insert(0b1000100, "DJ5");
+//     map.insert(0b1000101, "DJ6");
+//     map.insert(0b1000110, "DJ7");
+//     map.insert(0b1000111, "DJ8");
+//     map.insert(0b1001000, "DJ9");
+//     map.insert(0b1001001, "DJ10");
+//     map.insert(0b1001010, "DJ11");
+//     map.insert(0b1001011, "DJ12");
+//     map.insert(0b1001100, "DJ13");
+//     map.insert(0b1001101, "DJ14");
+//     map.insert(0b1001110, "DJ15");
+//     map.insert(0b1001111, "DJ16");
+//     map.insert(0b1010000, "DJ17");
+//     map.insert(0b1010001, "DJ18");
+//     map.insert(0b1010010, "DJ19");
+//     map.insert(0b1010011, "DJ20");
+//     return map;
+// }
+
+QString nodeIdToBinaryStr(quint8 nodeId) {
+    return QString("%1-%2")
+    .arg((nodeId >> 4) & 0x07, 3, 2, QChar('0'))
+        .arg(nodeId & 0x0F, 4, 2, QChar('0'));
+}
+
+quint8 MainWindow::parse7bitNodeIdFromByte(quint8 stateByte)
+{
+    quint8 nodeId = (stateByte >> 1) & 0x7F;
+    return nodeId;
+}
+
+QString MainWindow::getDeviceIdShowText(quint8 nodeId)
+{
+    QMap<quint8, QString> idMap = MainWindow::nodeIdToName();
+    if (((nodeId >> 4) & 0x07) == 0b000) {
+        return "Ori_MX(000-0000)";
+    }
+    return idMap.value(nodeId, QString("未知设备ID(0x%1)").arg(QString::number(nodeId, 16).toUpper()));
 }
 
 void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
 {
-    // 1. 校验数据长度：拓扑信息从第67字节（索引66）开始，需至少包含6字节基座+14字节节点状态
+    // 校验数据长度：拓扑信息从第67字节（索引66）开始，需至少包含6字节基座+14字节节点状态
     const int TOPO_START_INDEX = 66;    // 第67字节对应索引66
     const int MIN_TOPO_LEN = 6 + 14;    // 拓扑信息最小长度
     if (realDataBody.size() < TOPO_START_INDEX + MIN_TOPO_LEN) {
@@ -1074,7 +1110,7 @@ void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
         return;
     }
 
-    // 3. 解析基座分配信息（6字节：3个基座，每个2字节）
+    // 解析基座分配信息（6字节：3个基座，每个2字节）
     QMap<QString, bool> baseNodes; // 标记基座节点，避免重复更新
     for (int i = 0; i < 3; ++i) {
         int baseOffset = TOPO_START_INDEX + i * 2;
@@ -1084,7 +1120,7 @@ void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
         quint8 nodeId = (static_cast<quint8>(realDataBody.at(baseOffset + 1)) >> 1) & 0x7F;
 
         // 映射节点ID到名称
-        QString nodeName = nodeIdToName().value(nodeId, QString("未知节点(0x%1)").arg(QString::number(nodeId, 16)));
+        QString nodeName = nodeIdToFunc().value(nodeId, QString("未知节点(0x%1)").arg(QString::number(nodeId, 16)));
 
         // 更新基座节点状态（slot=2表示基座）
         topologyView->updateNodeState(nodeName, 2);
@@ -1092,34 +1128,42 @@ void MainWindow::processMain_TopologData(const QByteArray &realDataBody)
         qDebug() << "[基座分配] 基座" << static_cast<int>(baseSeq) << "→ 节点：" << nodeName << "(ID:0x" << QString::number(nodeId, 16) << ")";
     }
 
-    // 4. 解析节点状态信息（14字节：每个字节对应一个节点）
+    // 解析节点状态信息（14字节：每个字节对应一个节点）
     const int NODE_STATE_START = TOPO_START_INDEX + 6; // 基座之后开始节点状态
+    QStringList identityList = {
+        "MX","GZ1","GZ2","BY1","BY2","BY3","BY4","BY5","BY6","ZJ0","ZJ1","ZJ2","ZJ3","ZJ4"
+    };
+
+    // 遍历14个状态字节，按顺序匹配身份
     for (int i = 0; i < 14; ++i) {
         int stateOffset = NODE_STATE_START + i;
         quint8 stateByte = static_cast<quint8>(realDataBody.at(stateOffset));
-
-        // 解析节点ID（前7bit）和入网状态（第8bit：0=入网，1=未入网）
-        quint8 nodeId = (stateByte >> 1) & 0x7F;
-        bool isJoined = (stateByte & 0x01) == 0; // 第8bit为0表示入网，1表示未入网
-
-        // 映射节点ID到名称
-        QString nodeName = nodeIdToName().value(nodeId, QString("未知节点(0x%1)").arg(QString::number(nodeId, 16)));
-
-        // 基座节点优先，已标记为基座的不更新入网状态
-        if (baseNodes.contains(nodeName)) {
-            continue;
+        QString curIdentity = identityList.at(i); // 获取当前字节对应的身份名称
+        // 基座节点优先：已标记为基座的身份，跳过入网状态更新
+        if (baseNodes.contains(curIdentity)) {
+            qDebug() << "[拓扑处理] " << curIdentity << "→ 基座节点，跳过状态更新（保留ID更新）";
+        } else {
+            // 非基座节点：正常更新入网状态
+            bool isJoined = (stateByte != 0x00);
+            int slot = isJoined ? 1 : 0;
+            topologyView->updateNodeState(curIdentity, slot);
         }
-
-        // 更新节点入网状态：slot=1（已入网）、slot=0（未入网）
-        int slot = isJoined ? 1 : 0;
-        topologyView->updateNodeState(nodeName, slot);
-        qDebug() << "[节点状态] " << nodeName << "(ID:0x" << QString::number(nodeId, 16) << ") →"
-                 << (isJoined ? "已入网" : "未入网");
+        //解析承担者ID
+        QString deviceIdShow = ""; // 默认空（无承担者）
+        if (stateByte != 0x00) { // 非零字节才解析承担者ID
+            quint8 nodeId7bit = parse7bitNodeIdFromByte(stateByte); // 提取高7位ID
+            deviceIdShow = getDeviceIdShowText(nodeId7bit); // 含MX特殊判定的最终显示文本
+        }
+        topologyView->updateNodeDeviceId(curIdentity, deviceIdShow);
+        replaceChainDialog->updateNodeDeviceId(curIdentity, deviceIdShow);
+        qDebug() << "[拓扑处理] " << curIdentity
+                 << " | 状态字节:0x" << QString::number(stateByte,16).toUpper()
+                 << " | 节点类型:" << (baseNodes.contains(curIdentity) ? "基座" : (stateByte != 0x00 ? "已入网" : "未入网"))
+                 << " | 承担者ID:" << (deviceIdShow.isEmpty() ? "无" : deviceIdShow);
     }
-
-    qDebug() << "[拓扑处理] 完成拓扑图节点状态更新";
+    qDebug() << "[拓扑处理] 完成拓扑图节点状态+承担者ID更新";
+    // replaceChainDialog->updateNodeDeviceId("DJ1", "100");
 }
-
 
 void MainWindow::on_recvdataclear_pushButton_clicked()
 {
@@ -1445,4 +1489,129 @@ void MainWindow::onActionBaseSetTriggered()
             qDebug() << failLog;
         }
     }
+}
+
+void MainWindow::onActionJoinstartTriggered()
+{
+    if (!tcpSocket || tcpSocket->state() != QAbstractSocket::ConnectedState) {
+        QString errorLog = QString("[%1] 发送失败：请先建立TCP连接！")
+                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(errorLog);
+        qDebug() << errorLog;
+        return;
+    }
+    QByteArray sendData;
+    quint16 dataLen = 0;
+    sendData.append(reinterpret_cast<const char*>(&dataLen), 2);
+    quint8 cmd = 0x11;
+    sendData.append(reinterpret_cast<const char*>(&cmd), 1);
+    qint64 sentBytes = tcpSocket->write(sendData);
+    printsenddata(sendData);
+    if (sentBytes == sendData.size()) {
+        QString successLog = QString("[%1] 发送入网启动指令")
+                                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(successLog);
+        qDebug() << successLog;
+    } else {
+        QString failLog = QString("[%1] 入网启动指令发送失败：仅发送%2字节（预期%3字节）")
+                              .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                              .arg(sentBytes)
+                              .arg(sendData.size());
+        ui->tip_textEdit->append(failLog);
+        qDebug() << failLog;
+    }
+}
+
+void MainWindow::onActionQuitstartTriggered()
+{
+    if (!tcpSocket || tcpSocket->state() != QAbstractSocket::ConnectedState) {
+        QString errorLog = QString("[%1] 发送失败：请先建立TCP连接！")
+                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(errorLog);
+        qDebug() << errorLog;
+        return;
+    }
+    QByteArray sendData;
+    quint16 dataLen = 0;
+    sendData.append(reinterpret_cast<const char*>(&dataLen), 2);
+    quint8 cmd = 0x12;
+    sendData.append(reinterpret_cast<const char*>(&cmd), 1);
+    qint64 sentBytes = tcpSocket->write(sendData);
+    printsenddata(sendData);
+    if (sentBytes == sendData.size()) {
+        QString successLog = QString("[%1] 发送退网启动指令")
+                                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(successLog);
+        qDebug() << successLog;
+    } else {
+        QString failLog = QString("[%1] 退网启动指令发送失败：仅发送%2字节（预期%3字节）")
+                              .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+                              .arg(sentBytes)
+                              .arg(sendData.size());
+        ui->tip_textEdit->append(failLog);
+        qDebug() << failLog;
+    }
+}
+
+void MainWindow::onActionApplyslotTriggered()
+{
+    if (!tcpSocket || tcpSocket->state() != QAbstractSocket::ConnectedState) {
+        QString errorLog = QString("[%1] 发送失败：请先建立TCP连接！")
+                               .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        ui->tip_textEdit->append(errorLog);
+        qDebug() << errorLog;
+        return;
+    }
+    // 获取动态空闲时隙数量
+    int freeSlotNum = num_freeslot;
+    // 创建申请时隙对话框，传入空闲时隙数量
+    ApplySlot dlg(freeSlotNum, this);
+    // 连接对话框的确认信号到主窗口的处理函数
+    connect(&dlg, &ApplySlot::applyConfirmed, this, &MainWindow::onApplyConfirmed);
+    // 显示对话框
+    dlg.exec();
+}
+
+void MainWindow::onApplyConfirmed(int transNum, int measureNum)
+{
+    // 在tip_textEdit中显示申请信息
+    ui->tip_textEdit->append(QString("[时隙申请] 申请传输时隙：%1个，申请测距时隙：%2个")
+                                 .arg(transNum).arg(measureNum));
+    // 向下位机发送消息
+    quint8 byte1 = (0 << 7) | (transNum & 0x7F); // bit7=0 + 低7位为transNum
+    quint8 byte2 = (1 << 7) | (measureNum & 0x7F); // bit7=1 + 低7位为measureNum
+    QByteArray dataBody;
+    dataBody.append(static_cast<char>(byte1));
+    dataBody.append(static_cast<char>(byte2));
+    QByteArray packet;
+    quint16 dataLen = static_cast<quint16>(dataBody.size());
+    packet.append(static_cast<char>((dataLen >> 8) & 0xFF));
+    packet.append(static_cast<char>(dataLen & 0xFF));
+    packet.append(static_cast<char>(0x0F));
+    packet.append(dataBody);
+    tcpSocket->write(packet);
+    printsenddata(packet);
+    tcpSocket->flush();
+}
+void ReplaceChainDialog::updateNodeState(const QString& name, int slot)
+{
+    if (!m_nodes.contains(name)) return;
+    if (slot == 0) m_nodes[name]->setState(NodeItem::NotJoined);
+    else if (slot == 1) m_nodes[name]->setState(NodeItem::Joined);
+    else m_nodes[name]->setState(NodeItem::Base);
+}
+
+void ReplaceChainDialog::updateNodeDeviceId(const QString& name, const QString& id)
+{
+    if (!m_nodes.contains(name)) return;
+    m_nodes[name]->setDeviceId(id);
+}
+
+void MainWindow::onReplaceChainConfirmed(const QString& tipText)
+{
+    if (!tcpSocket || !tcpSocket->isOpen()) {
+        ui->tip_textEdit->append("TCP 未连接，无法发送数据");
+        return;
+    }
+    ui->tip_textEdit->append(tipText);
 }

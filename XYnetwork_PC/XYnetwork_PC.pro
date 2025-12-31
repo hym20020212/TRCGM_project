@@ -9,6 +9,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    applyslot.cpp \
     baseset.cpp \
     connectdialog.cpp \
     main.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
     topologyview.cpp
 
 HEADERS += \
+    applyslot.h \
     baseset.h \
     connectdialog.h \
     mainwindow.h \
@@ -32,6 +34,7 @@ HEADERS += \
     topologyview.h
 
 FORMS += \
+    applyslot.ui \
     baseset.ui \
     connectdialog.ui \
     mainwindow.ui \

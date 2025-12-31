@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>875</width>
-    <height>561</height>
+    <width>634</width>
+    <height>488</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -669,7 +669,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>875</width>
+     <width>634</width>
      <height>18</height>
     </rect>
    </property>
@@ -697,8 +697,8 @@
    <addaction name="actionSelfwork"/>
    <addaction name="actionControl"/>
    <addaction name="actionLostcontrol"/>
-   <addaction name="actionjoinstart"/>
-   <addaction name="actionquitstart"/>
+   <addaction name="actionJoinstart"/>
+   <addaction name="actionQuitstart"/>
    <addaction name="actionMeasure"/>
   </widget>
   <widget class="QToolBar" name="toolBar_2">
@@ -862,7 +862,7 @@
     <enum>QAction::MenuRole::TextHeuristicRole</enum>
    </property>
   </action>
-  <action name="actionjoinstart">
+  <action name="actionJoinstart">
    <property name="icon">
     <iconset resource="images.qrc">
      <normaloff>:/new/prefix1/image/gateway.png</normaloff>:/new/prefix1/image/gateway.png</iconset>
@@ -877,7 +877,7 @@
     <enum>QAction::MenuRole::TextHeuristicRole</enum>
    </property>
   </action>
-  <action name="actionquitstart">
+  <action name="actionQuitstart">
    <property name="icon">
     <iconset resource="images.qrc">
      <normaloff>:/new/prefix1/image/gateway_gray.png</normaloff>:/new/prefix1/image/gateway_gray.png</iconset>

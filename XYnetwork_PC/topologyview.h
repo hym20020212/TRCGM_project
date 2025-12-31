@@ -16,8 +16,9 @@ public:
 
     QGraphicsScene* scene() const;
     void drawTopology();
-    //新增节点对象化
+    //节点对象化
     void updateNodeState(const QString& nodeName, int slot);
+    void updateNodeDeviceId(const QString& identityName, const QString& deviceId);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

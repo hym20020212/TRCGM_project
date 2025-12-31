@@ -206,3 +206,13 @@ void TopologyView::updateNodeState(const QString& nodeName, int slot)
         node->setState(NodeItem::Base);
     m_scene->update();
 }
+
+void TopologyView::updateNodeDeviceId(const QString& identityName, const QString& deviceId)
+{
+    if (!m_nodes.contains(identityName))
+        return;
+
+    NodeItem* node = m_nodes[identityName];
+    node->setDeviceId(deviceId); // 调用NodeItem的setDeviceId
+    m_scene->update();
+}
