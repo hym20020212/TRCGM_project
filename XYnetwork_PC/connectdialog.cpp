@@ -1,6 +1,6 @@
 #include "connectdialog.h"
 #include "ui_connectdialog.h"
-#define DEFAULT_IP "192.168.1.127"
+#define DEFAULT_IP "192.168.1.118"
 #define DEFAULT_PORT 8889
 
 ConnectDialog::ConnectDialog(QWidget *parent)

@@ -181,7 +181,7 @@ void TopologyView::setupLegend()
     };
 
     // 添加三项图例
-    m_legendLayout->addWidget(makeLegend(Qt::red,  "未入网"));
+    m_legendLayout->addWidget(makeLegend(Qt::gray,  "未入网"));
     m_legendLayout->addWidget(makeLegend(Qt::green,"已入网"));
     m_legendLayout->addWidget(makeLegend(Qt::blue, "基座节点"));
 

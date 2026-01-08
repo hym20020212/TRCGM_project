@@ -29,7 +29,7 @@ void NodeItem::setState(State s)
     m_state = s;
 
     switch(s){
-    case NotJoined:   setBrush(QBrush(Qt::red)); break;
+    case NotJoined:   setBrush(QBrush(Qt::gray)); break;
     case Joined:      setBrush(QBrush(Qt::green)); break;
     case Base:        setBrush(QBrush(Qt::blue)); break;
     }
